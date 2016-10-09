@@ -5,19 +5,11 @@ require(DT);
 shinyServer(function(input, output) {
             mydata <- reactive({
                 n <- input$n;
-                noise <- input$noise;
-                precision <- input$precision;
-                bias_factor <- input$bias_factor;
-                bias_constant <- input$bias_constant;
-                outliers <- input$outliers;
                 df <- data.frame(realDistance = runif(n, min=0, max=180));
-                df$eta <- df$realDistance + 
-                    rnorm(n) * df$realDistance * precision +
-                    df$realDistance * bias_factor +
-                    bias_constant +
-                    rnorm(n) * input$noise +
-                    (outliers * (df$realDistance > 20) * (df$realDistance < 30) * (rnorm(n) > 2) * 100)
-                    ;
+                df$eta <- rnorm(n, 
+                      mean = df$realDistance * (1 + input$bias_factor) + input$bias_constant,
+                      sd = df$realDistance * input$precision + input$noise) +
+                    (input$outliers * (df$realDistance > 20) * (df$realDistance < 30) * (rnorm(n) > 2) * 100);
                 df
             });
             filtered <- reactive({mydata() %>% dplyr::filter(realDistance > 50 & realDistance < 60)});
@@ -38,31 +30,24 @@ shinyServer(function(input, output) {
                 ggplot(filtered(), aes(eta)) + xlim(-60, 240) + geom_density()
             });
             output$raw <- renderPlot({
-                df <- mydata()
-                qplot(df$realDistance, df$eta, xlim=c(0,120), ylim=c(-60, 240))
+                qplot(data = mydata(), x = realDistance, y = eta, xlim=c(0,120), ylim=c(-60, 240))
             });
             output$rawError <- renderPlot({
-                df <- mydata()
-                qplot(df$realDistance, df$realDistance - df$eta, xlim=c(0,120), ylim=c(-120, 120))
+                qplot(data = mydata(), x = realDistance, y = realDistance-eta, xlim=c(0,120), ylim=c(-120, 120))
             });
             output$grouped <- renderPlot({
-                df <- grouped()
-                qplot(df$groupedRealDistance, df$meanEta, xlim=c(0,120), ylim=c(0, 240))
+                qplot(data = grouped(), x = groupedRealDistance, y = meanEta, xlim=c(0,120), ylim=c(0, 240))
             })
             output$bias <- renderPlot({
-                df <- grouped()
-                qplot(df$groupedRealDistance, df$bias, xlim=c(0,120), ylim=c(-60, 60))
+                qplot(data = grouped(), x = groupedRealDistance, y = bias, xlim=c(0,120), ylim=c(-60, 60))
             })
             output$mae <- renderPlot({
-                df <- grouped()
-                qplot(df$groupedRealDistance, df$mae, xlim=c(0,120), ylim=c(0, 60))
+                qplot(data = grouped(), x = groupedRealDistance, y = mae, xlim=c(0,120), ylim=c(0, 60))
             })
             output$mape <- renderPlot({
-                df <- grouped()
-                qplot(df$groupedRealDistance, df$mape, xlim=c(0,120), ylim=c(0,1))
+                qplot(data = grouped(), x = groupedRealDistance, y = mape, xlim=c(0,120), ylim=c(0,1))
             })
             output$rmse <- renderPlot({
-                df <- grouped()
-                qplot(df$groupedRealDistance, df$rmse, xlim=c(0,120), ylim=c(0, 60))
+                qplot(data = grouped(), x = groupedRealDistance, y = rmse, xlim=c(0,120), ylim=c(0, 60))
             })
 })
